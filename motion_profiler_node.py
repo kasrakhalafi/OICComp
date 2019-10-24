@@ -16,6 +16,10 @@ from dynamic_reconfigure.server import Server
 from parsian_agent.cfg import motion_proConfig
 
 speed = 10.0
+RobotSpeed = 1
+minSpeed = 0.3
+maxSpeed = 1.5
+Shooting = 2
 
 
 class MotionProfilerNode:
@@ -26,12 +30,11 @@ class MotionProfilerNode:
         self.m = rospy.Publisher('/world_model', parsian_world_model, queue_size=1, latch=True)
         rospy.Timer(rospy.Duration(1.0/60.0), self.TimerCallback)
         self.msg = parsian_robot_command()
-        self.msg.robot_id = 0
+        self.msg.robot_id = 6
         self.v1 = 0
         self.v2 = 0
         self.v3 = 0
         self.v4 = 0
-
         rospy.spin()
 
     def jacobian(self, vx, vy, w):
@@ -54,27 +57,27 @@ class MotionProfilerNode:
         self.v3 = (round(dw3))
         self.v4 = (round(dw4))
 
-
-    def TimerCallback(self,event):
+    def TimerCallback(self, event):
         pwm = parsian_world_model()
         self.m.publish(pwm)
         self.p.publish(self.msg)
 
-
     def MovingRobot(self, data):
         #rospy.loginfo(data.buttons)
-        rospy.loginfo(data.axes)
-        if data.buttons[0] == 1:
-            rospy.loginfo("1 is pressed")
-            self.jacobian(0.0, 0.0, 0.0)                 ############# STOP #############
-        elif data.buttons[1] == 1:
-            rospy.loginfo("2 is pressed")
-        elif data.buttons[2] == 1:
-            rospy.loginfo("3 is pressed")
-        elif data.buttons[3] == 1:
-            rospy.loginfo("4 is pressed")
-            self.msg.kickSpeed = 150
-        elif data.buttons[4] == 1:
+        #rospy.loginfo(data.axes)
+
+        # if data.buttons[0] == 1:
+        #     rospy.loginfo("1 is pressed")
+        #     self.jacobian(0.0, 0.0, 0.0)                 ############# STOP #############
+        # elif data.buttons[1] == 1:
+        #     rospy.loginfo("2 is pressed")
+        # elif data.buttons[2] == 1:
+        #     rospy.loginfo("3 is pressed")
+        # elif data.buttons[3] == 1:
+        #     rospy.loginfo("4 is pressed")
+        #     #self.msg.kickSpeed = 250
+
+        if data.buttons[4] == 1:
             rospy.loginfo("L1 is pressed")
             self.msg.vel_w = 210
             self.jacobian(0.0, 0.0, speed / 20.0)         ############ CCW ##############
@@ -84,62 +87,159 @@ class MotionProfilerNode:
             self.jacobian(0.0, 0.0, -speed / 20.0)        ############ CW ###############
         elif data.buttons[6] == 1:
             rospy.loginfo("L2 is pressed")
+            self.msg.vel_w = 100
         elif data.buttons[7] == 1:
             rospy.loginfo("R2 is pressed")
-
+            self.msg.vel_w = -100
         elif data.axes[0] == 1.0 and -1 < data.axes[1] < 1 and data.axes[2] == 1.0:
             rospy.loginfo("Left Dual Shock")
-            self.msg.vel_N = 1.4
-            self.jacobian(0.0, speed * 4.2 / 127.0, 0.0)
+            if data.buttons[1] == 1:
+                self.msg.vel_N = RobotSpeed * minSpeed
+            elif data.buttons[2] == 1:
+                self.msg.vel_N = RobotSpeed * maxSpeed
+            elif data.buttons[3] == 1:
+                self.msg.vel_N = RobotSpeed * Shooting
+            else:
+                self.msg.vel_N = RobotSpeed
+                self.jacobian(0.0, speed * 4.2 / 127.0, 0.0)
         elif data.axes[0] == 1.0 and data.axes[1] == 1 and 0.7 < data.axes[2] <= 1:
             rospy.loginfo("Left Up Dual Shock")
-            self.msg.vel_N = 1.4
-            self.msg.vel_F = 1.4
-            self.jacobian(speed * 4.2 / 127.0, speed * 4.2 / 127.0, 0.0)
+            if data.buttons[1] == 1:
+                self.msg.vel_N = RobotSpeed * minSpeed
+                self.msg.vel_F = RobotSpeed * minSpeed
+            elif data.buttons[2] == 1:
+                self.msg.vel_N = RobotSpeed * maxSpeed
+                self.msg.vel_F = RobotSpeed * maxSpeed
+            elif data.buttons[3] == 1:
+                self.msg.vel_N = RobotSpeed * Shooting
+                self.msg.vel_F = RobotSpeed * Shooting
+            else:
+                self.msg.vel_N = RobotSpeed
+                self.msg.vel_F = RobotSpeed
+                self.jacobian(speed * 4.2 / 127.0, speed * 4.2 / 127.0, 0.0)
         elif -1 < data.axes[0] < 1 and data.axes[1] == 1 and -1 < data.axes[2] < 1:
             rospy.loginfo("Up Dual Shock")
-            self.msg.vel_F = 1.4
-            self.jacobian(speed * 4.2 / 127.0, 0.0, 0.0)
+            if data.buttons[1] == 1:
+                self.msg.vel_F = RobotSpeed * minSpeed
+            elif data.buttons[2] == 1:
+                self.msg.vel_F = RobotSpeed * maxSpeed
+            elif data.buttons[3] == 1:
+                self.msg.vel_F = RobotSpeed * Shooting
+            else:
+                self.msg.vel_F = RobotSpeed
+                self.jacobian(speed * 4.2 / 127.0, 0.0, 0.0)
         elif data.axes[0] == -1.0 and data.axes[1] == 1 and -1 <= data.axes[2] < -0.5:
             rospy.loginfo("Right Up Dual Shock")
-            self.msg.vel_F = 1.4
-            self.msg.vel_N = -1.4
-            self.jacobian(speed * 4.2 / 127.0, -speed * 4.2 / 127.0, 0.0)
+            if data.buttons[1] == 1:
+                self.msg.vel_F = RobotSpeed * minSpeed
+                self.msg.vel_N = -RobotSpeed * minSpeed
+            elif data.buttons[2] == 1:
+                self.msg.vel_F = RobotSpeed * maxSpeed
+                self.msg.vel_N = -RobotSpeed * maxSpeed
+            elif data.buttons[3] == 1:
+                self.msg.vel_F = RobotSpeed * Shooting
+                self.msg.vel_N = -RobotSpeed * Shooting
+            else:
+                self.msg.vel_F = RobotSpeed
+                self.msg.vel_N = -RobotSpeed
+                self.jacobian(speed * 4.2 / 127.0, -speed * 4.2 / 127.0, 0.0)
         elif data.axes[0] == -1.0 and -0.5 < data.axes[1] < 1 and data.axes[2] == -1.0:
             rospy.loginfo("Right Dual Shock")
-            self.msg.vel_N = -1.4
-            self.jacobian(0.0, -speed * 4.2 / 127.0, 0.0)
+            if data.buttons[1] == 1:
+                self.msg.vel_N = -RobotSpeed * minSpeed
+            elif data.buttons[2] == 1:
+                self.msg.vel_N = -RobotSpeed * maxSpeed
+            elif data.buttons[3] == 1:
+                self.msg.vel_N = -RobotSpeed * Shooting
+            else:
+                self.msg.vel_N = -RobotSpeed
+                self.jacobian(0.0, -speed * 4.2 / 127.0, 0.0)
         elif data.axes[0] == -1.0 and -1 <= data.axes[1] < -0.5 and -1 <= data.axes[2] < -0.5:
             rospy.loginfo("Right Down Dual Shock")
-            self.msg.vel_N = -1.4
-            self.msg.vel_F = -1.4
-            self.jacobian(-speed * 4.2 / 127.0, -speed * 4.2 / 127.0, 0.0)
+            if data.buttons[1] == 1:
+                self.msg.vel_N = -RobotSpeed * minSpeed
+                self.msg.vel_F = -RobotSpeed * minSpeed
+            elif data.buttons[2] == 1:
+                self.msg.vel_N = -RobotSpeed * maxSpeed
+                self.msg.vel_F = -RobotSpeed * maxSpeed
+            elif data.buttons[3] == 1:
+                self.msg.vel_N = -RobotSpeed * Shooting
+                self.msg.vel_F = -RobotSpeed * Shooting
+            else:
+                self.msg.vel_N = -RobotSpeed
+                self.msg.vel_F = -RobotSpeed
+                self.jacobian(-speed * 4.2 / 127.0, -speed * 4.2 / 127.0, 0.0)
         elif -1 < data.axes[0] < 1 and data.axes[1] == -1 and -1 < data.axes[2] < 1:
             rospy.loginfo("Down Dual Shock")
-            self.msg.vel_F = -1.4
-            self.jacobian(-speed * 4.2 / 127.0, 0.0, 0.0)
+            if data.buttons[1] == 1:
+                self.msg.vel_F = -RobotSpeed * minSpeed
+            elif data.buttons[2] == 1:
+                self.msg.vel_F = -RobotSpeed * maxSpeed
+            elif data.buttons[3] == 1:
+                self.msg.vel_F = -RobotSpeed * Shooting
+            else:
+                self.msg.vel_F = -RobotSpeed
+                self.jacobian(-speed * 4.2 / 127.0, 0.0, 0.0)
         elif data.axes[0] == 1 and data.axes[1] == -1 and data.axes[2] == 1.0:
             rospy.loginfo("Left Down Dual Shock")
-            self.msg.vel_F = -1.4
-            self.msg.vel_N = 1.4
-            self.jacobian(-speed * 4.2 / 127.0, speed * 4.2 / 127.0, 0.0)
+            if data.buttons[1] == 1:
+                self.msg.vel_F = -RobotSpeed * minSpeed
+                self.msg.vel_N = RobotSpeed * minSpeed
+            elif data.buttons[2] == 1:
+                self.msg.vel_F = -RobotSpeed * maxSpeed
+                self.msg.vel_N = RobotSpeed * maxSpeed
+            elif data.buttons[3] == 1:
+                self.msg.vel_F = -RobotSpeed * Shooting
+                self.msg.vel_N = RobotSpeed * Shooting
+            else:
+                self.msg.vel_F = -RobotSpeed
+                self.msg.vel_N = RobotSpeed
+                self.jacobian(-speed * 4.2 / 127.0, speed * 4.2 / 127.0, 0.0)
 
         elif data.axes[6] == 1.0:
             rospy.loginfo("up is pressed")
-            self.msg.vel_F = 1.4
-            self.jacobian(speed * 4.2 / 127.0, 0.0, 0.0)
+            if data.buttons[1] == 1:
+                self.msg.vel_F = RobotSpeed * minSpeed
+            elif data.buttons[2] == 1:
+                self.msg.vel_F = RobotSpeed * maxSpeed
+            elif data.buttons[3] == 1:
+                self.msg.vel_F = RobotSpeed * Shooting
+            else:
+                self.msg.vel_F = RobotSpeed
+                self.jacobian(speed * 4.2 / 127.0, 0.0, 0.0)
         elif data.axes[5] == -1.0:
             rospy.loginfo("Right is pressed")
-            self.msg.vel_N = -1.4
-            self.jacobian(0.0, -speed * 4.2 / 127.0, 0.0)
+            if data.buttons[1] == 1:
+                self.msg.vel_N = -RobotSpeed * minSpeed
+            elif data.buttons[2] == 1:
+                self.msg.vel_N = -RobotSpeed * maxSpeed
+            elif data.buttons[3] == 1:
+                self.msg.vel_N = -RobotSpeed * Shooting
+            else:
+                self.msg.vel_N = -RobotSpeed
+                self.jacobian(0.0, -speed * 4.2 / 127.0, 0.0)
         elif data.axes[6] == -1.0:
             rospy.loginfo("Down is pressed")
-            self.msg.vel_F = -1.4
-            self.jacobian(-speed * 4.2 / 127.0, 0.0, 0.0)
+            if data.buttons[1] == 1:
+                self.msg.vel_F = -RobotSpeed * minSpeed
+            elif data.buttons[2] == 1:
+                self.msg.vel_F = -RobotSpeed * maxSpeed
+            elif data.buttons[3] == 1:
+                self.msg.vel_F = -RobotSpeed * Shooting
+            else:
+                self.msg.vel_F = -RobotSpeed
+                self.jacobian(-speed * 4.2 / 127.0, 0.0, 0.0)
         elif data.axes[5] == 1.0:
             rospy.loginfo("Left is pressed")
-            self.msg.vel_N = 1.4
-            self.jacobian(0.0, speed * 4.2 / 127.0, 0.0)
+            if data.buttons[1] == 1:
+                self.msg.vel_N = RobotSpeed * minSpeed
+            elif data.buttons[2] == 1:
+                self.msg.vel_N = RobotSpeed * maxSpeed
+            elif data.buttons[3] == 1:
+                self.msg.vel_N = RobotSpeed * Shooting
+            else:
+                self.msg.vel_N = RobotSpeed
+                self.jacobian(0.0, speed * 4.2 / 127.0, 0.0)
         else:
             self.msg.vel_F = 0
             self.msg.vel_N = 0
@@ -153,12 +253,12 @@ class MotionProfilerNode:
         self.msg.wheel3 = self.v3
         self.msg.wheel4 = self.v4
 
-        # rospy.loginfo("Velocity of wheel 1 is:{}".format(self.v1))
-        # rospy.loginfo("Velocity of wheel 2 is:{}".format(self.v2))
-        # rospy.loginfo("Velocity of wheel 3 is:{}".format(self.v3))
-        # rospy.loginfo("Velocity of wheel 4 is:{}".format(self.v4))
-        # rospy.loginfo("Shoot Velocity is : {}".format(self.msg.kickSpeed))
-        # rospy.loginfo("--------------------------")
+        rospy.loginfo("Velocity of wheel 1 is:{}".format(self.v1))
+        rospy.loginfo("Velocity of wheel 2 is:{}".format(self.v2))
+        rospy.loginfo("Velocity of wheel 3 is:{}".format(self.v3))
+        rospy.loginfo("Velocity of wheel 4 is:{}".format(self.v4))
+        rospy.loginfo("Shoot Velocity is : {}".format(self.msg.kickSpeed))
+        rospy.loginfo("--------------------------")
 
 
 if __name__ == '__main__':
@@ -166,6 +266,7 @@ if __name__ == '__main__':
         MotionProfilerNode()
     except rospy.ROSInterruptException:
         pass
+
 
 
 
